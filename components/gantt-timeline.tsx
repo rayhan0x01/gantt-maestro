@@ -56,8 +56,8 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
       (taskStart < dateRange.start && taskEnd > dateRange.end)
 
     // Calculate position and width
-    const startDayOffset = Math.max(0, differenceInDays(taskStart, dateRange.start))
-    const endDayOffset = Math.min(totalDays, differenceInDays(taskEnd, dateRange.start) + 1)
+    const startDayOffset = Math.max(0, differenceInDays(taskStart, dateRange.start) + 1)
+    const endDayOffset = Math.min(totalDays, differenceInDays(taskEnd, dateRange.start) + 2)
 
     const x = startDayOffset * dayWidth
     const width = Math.max(dayWidth * 0.8, (endDayOffset - startDayOffset) * dayWidth)
