@@ -303,8 +303,8 @@ export default function Dashboard() {
                               <span>Tasks: {chart.taskCount}</span>
                             </div>
                             <div className="flex flex-wrap gap-2 flex-grow items-center">
-                              <Badge variant="secondary" className="text-muted-foreground">Created: {new Date(chart.createdAt).toLocaleDateString()}</Badge>
-                              <Badge variant="secondary" className="text-muted-foreground">Updated: {new Date(chart.updatedAt).toLocaleDateString()}</Badge>
+                              <Badge variant="secondary">Created: {new Date(chart.createdAt).toLocaleDateString()}</Badge>
+                              <Badge variant="secondary">Updated: {new Date(chart.updatedAt).toLocaleDateString()}</Badge>
                             </div>
                           
                           <div className="flex shrink-0 items-center justify-end gap-1">

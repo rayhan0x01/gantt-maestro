@@ -30,6 +30,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
     originalTask: Task
   } | null>(null)
   const [hoveredTask, setHoveredTask] = useState<string | null>(null)
+  const [isTouch, setIsTouch] = useState(false)
 
   const TIMELINE_HEIGHT = 300
   const TASK_HEIGHT = 32
@@ -93,15 +94,20 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
     return `rgb(${Math.floor(r / factor)}, ${Math.floor(g / factor)}, ${Math.floor(b / factor)})`
   }
 
-  // Mouse event handlers
-  const handleMouseDown = (
-    e: React.MouseEvent,
+  // Pointer event handlers (work for mouse, touch, pen)
+  const handlePointerDown = (
+    e: React.PointerEvent,
     taskId: string,
     type: "move" | "resize-start" | "resize-end" | "progress",
   ) => {
     e.preventDefault()
+    ;(e.currentTarget as any).setPointerCapture?.(e.pointerId)
+
     const task = tasks.find((t) => t.id === taskId)
     if (!task) return
+
+    // Show hover affordances on touch
+    setHoveredTask(taskId)
 
     setDragState({
       taskId,
@@ -111,10 +117,11 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
     })
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handlePointerMove = (e: MouseEvent | PointerEvent | React.PointerEvent) => {
     if (!dragState || !onTaskUpdate) return
 
-    const deltaX = e.clientX - dragState.startX
+    const clientX = (e as PointerEvent).clientX ?? (e as any).clientX
+    const deltaX = clientX - dragState.startX
     const deltaDays = Math.round(deltaX / dayWidth)
     const task = dragState.originalTask
 
@@ -158,7 +165,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
         if (taskBar) {
           const rect = svgRef.current?.getBoundingClientRect()
           if (rect) {
-            const relativeX = e.clientX - rect.left - taskBar.x
+            const relativeX = clientX - rect.left - taskBar.x
             const progress = Math.max(0, Math.min(100, (relativeX / taskBar.width) * 100))
             onTaskUpdate(dragState.taskId, { progress: Math.round(progress) })
           }
@@ -168,29 +175,38 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
     }
   }
 
-  const handleMouseUp = () => {
+  const handlePointerUp = () => {
     setDragState(null)
   }
 
   useEffect(() => {
-    const handleGlobalMouseMove = (e: MouseEvent) => {
+    // detect touch-capable/coarse pointers
+    const mql = window.matchMedia("(pointer: coarse)")
+    const updatePointer = () => setIsTouch(mql.matches || navigator.maxTouchPoints > 0)
+    updatePointer()
+    mql.addEventListener("change", updatePointer)
+
+    const handleGlobalPointerMove = (e: PointerEvent) => {
       if (dragState) {
-        handleMouseMove(e as any)
+        handlePointerMove(e)
       }
     }
 
-    const handleGlobalMouseUp = () => {
+    const handleGlobalPointerUp = () => {
       setDragState(null)
     }
 
     if (dragState) {
-      document.addEventListener("mousemove", handleGlobalMouseMove)
-      document.addEventListener("mouseup", handleGlobalMouseUp)
+      document.addEventListener("pointermove", handleGlobalPointerMove)
+      document.addEventListener("pointerup", handleGlobalPointerUp)
+      document.addEventListener("pointercancel", handleGlobalPointerUp)
     }
 
     return () => {
-      document.removeEventListener("mousemove", handleGlobalMouseMove)
-      document.removeEventListener("mouseup", handleGlobalMouseUp)
+      mql.removeEventListener("change", updatePointer)
+      document.removeEventListener("pointermove", handleGlobalPointerMove)
+      document.removeEventListener("pointerup", handleGlobalPointerUp)
+      document.removeEventListener("pointercancel", handleGlobalPointerUp)
     }
   }, [dragState])
 
@@ -201,8 +217,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
         width={Math.max(containerRef.current?.clientWidth || 1600, timelineWidth + PADDING * 2)} 
         height={TIMELINE_HEIGHT}
         className="border rounded-lg bg-card overflow-x-scroll"
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
+        style={{ touchAction: "none" }}
       >
         {/* Date headers Days */}
         <g>
@@ -261,8 +276,8 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
                 <g
                   key={taskBar.task.id}
                   className={isBeingDragged ? "opacity-80" : ""}
-                  onMouseEnter={() => setHoveredTask(taskBar.task.id)}
-                  onMouseLeave={() => setHoveredTask(null)}
+                  onPointerEnter={() => setHoveredTask(taskBar.task.id)}
+                  onPointerLeave={() => setHoveredTask(null)}
                 >
                   {/* Unified hover area covering bar and seek track */}
                   <rect
@@ -281,7 +296,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
                     fill={taskBar.task.color}
                     rx={4}
                     className="cursor-move"
-                    onMouseDown={(e) => handleMouseDown(e, taskBar.task.id, "move")}
+                    onPointerDown={(e) => handlePointerDown(e, taskBar.task.id, "move")}
                   />
 
                   {/* Progress overlay */}
@@ -293,7 +308,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
                     fill={getLighterShade(taskBar.task.color)}
                     rx={4}
                     className="cursor-pointer"
-                    onMouseDown={(e) => handleMouseDown(e, taskBar.task.id, "progress")}
+                    onPointerDown={(e) => handlePointerDown(e, taskBar.task.id, "progress")}
                   />
 
                   {/* Progress seek track below the bar (appears on hover) */}
@@ -302,6 +317,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
                     const trackHeight = TRACK_HEIGHT
                     const knobCX = PADDING + taskBar.x + Math.min(taskBar.width, (taskBar.width * taskBar.task.progress) / 100)
                     const knobCY = trackY + trackHeight / 2
+                    const showTrack = isTouch || isHovered
                     return (
                       <g>
                         <rect
@@ -311,11 +327,11 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
                           height={trackHeight}
                           rx={3}
                           fill={getLighterShade(taskBar.task.color)}
-                          opacity={isHovered ? 0.35 : 0}
-                          className={isHovered ? "cursor-pointer" : "pointer-events-none"}
-                          onMouseDown={(e) => handleMouseDown(e, taskBar.task.id, "progress")}
+                          opacity={showTrack ? 0.35 : 0}
+                          className={showTrack ? "cursor-pointer" : "pointer-events-none"}
+                          onPointerDown={(e) => handlePointerDown(e, taskBar.task.id, "progress")}
                         />
-                        {isHovered && (
+                        {showTrack && (
                           <circle
                             cx={knobCX}
                             cy={knobCY}
@@ -324,7 +340,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
                             stroke={getLighterShade(taskBar.task.color)}
                             strokeWidth={2}
                             className="cursor-ew-resize"
-                            onMouseDown={(e) => handleMouseDown(e, taskBar.task.id, "progress")}
+                            onPointerDown={(e) => handlePointerDown(e, taskBar.task.id, "progress")}
                           />)
                         }
                       </g>
@@ -368,7 +384,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
                     height={TASK_HEIGHT}
                     fill="transparent"
                     className="cursor-w-resize"
-                    onMouseDown={(e) => handleMouseDown(e, taskBar.task.id, "resize-start")}
+                    onPointerDown={(e) => handlePointerDown(e, taskBar.task.id, "resize-start")}
                   />
                   <rect
                     x={PADDING + taskBar.x + taskBar.width - 2}
@@ -377,7 +393,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
                     height={TASK_HEIGHT}
                     fill="transparent"
                     className="cursor-e-resize"
-                    onMouseDown={(e) => handleMouseDown(e, taskBar.task.id, "resize-end")}
+                    onPointerDown={(e) => handlePointerDown(e, taskBar.task.id, "resize-end")}
                   />
                 </g>
               )
