@@ -339,6 +339,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
                     y={taskBar.y}
                     width={taskBar.width}
                     height={TASK_HEIGHT}
+                    style={{ pointerEvents: "none" }}
                   >
                     <div className="flex items-center justify-center overflow-hidden" style={{ width: taskBar.width - 30, height: TASK_HEIGHT }}>
                       <p className="px-2 text-xs text-white font-medium pointer-events-none truncate">{taskBar.task.name}</p>
