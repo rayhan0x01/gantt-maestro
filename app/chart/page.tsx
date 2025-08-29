@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useMemo, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Progress } from "@/components/ui/progress"
-import { Plus, Edit2, Download, CalendarIcon, Trash2, Check, ArrowLeft } from "lucide-react"
+import { Plus, Edit2, Download, CalendarIcon, Trash2, Check, ArrowLeft, ArrowUpDown, GripVertical } from "lucide-react"
 import Link from "next/link"
 import { format, parseISO, addDays } from "date-fns"
 import { GanttStorage, type GanttProject, type Task } from "@/lib/storage"
@@ -32,6 +32,9 @@ function ChartEditorContent() {
   })
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [sort, setSort] = useState<{ key: "startDate" | "endDate"; direction: "asc" | "desc" } | null>(null)
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null)
+  const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null)
 
   useEffect(() => {
     if (chartId) {
@@ -133,6 +136,45 @@ function ChartEditorContent() {
     }
   }
 
+  const handleSort = (key: "startDate" | "endDate") => {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, direction: "asc" }
+      if (prev.direction === "asc") return { key, direction: "desc" }
+      // If already desc, clear sorting
+      return null
+    })
+  }
+
+  const sortedTasks = useMemo(() => {
+    const baseTasks = project?.tasks ? [...project.tasks] : []
+    if (!sort) return baseTasks
+    return baseTasks.sort((a, b) => {
+      const aTime = parseISO(a[sort.key]).getTime()
+      const bTime = parseISO(b[sort.key]).getTime()
+      if (aTime === bTime) return 0
+      return sort.direction === "asc" ? aTime - bTime : bTime - aTime
+    })
+  }, [project, sort])
+
+  const handleRowDrop = (targetTaskId: string) => {
+    if (!project || !draggingTaskId) return
+    // Reordering is only allowed when not sorted (avoids confusing UX)
+    if (sort) return
+    const fromIndex = project.tasks.findIndex((t) => t.id === draggingTaskId)
+    const toIndex = project.tasks.findIndex((t) => t.id === targetTaskId)
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
+      setDraggingTaskId(null)
+      setDragOverTaskId(null)
+      return
+    }
+    const newTasks = [...project.tasks]
+    const [moved] = newTasks.splice(fromIndex, 1)
+    newTasks.splice(toIndex, 0, moved)
+    saveProject({ ...project, tasks: newTasks })
+    setDraggingTaskId(null)
+    setDragOverTaskId(null)
+  }
+
   if (!project) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -143,6 +185,8 @@ function ChartEditorContent() {
       </div>
     )
   }
+
+  
 
   return (
     <div className="min-h-screen bg-background">
@@ -245,12 +289,19 @@ function ChartEditorContent() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Tasks</CardTitle>
-                          <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Task
-            </Button>
-          </div>
-        </CardHeader>
+              <div className="flex items-center gap-2">
+                {sort && (
+                  <Button variant="outline" size="sm" onClick={() => setSort(null)}>
+                    Clear sort
+                  </Button>
+                )}
+                <Button onClick={() => setDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Task
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
         <CardContent>
           <ChartDialog
             open={dialogOpen}
@@ -279,9 +330,26 @@ function ChartEditorContent() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-8">Order</TableHead>
                         <TableHead>Task Name</TableHead>
-                        <TableHead>Start Date</TableHead>
-                        <TableHead>End Date</TableHead>
+                        <TableHead>
+                          <Button variant="ghost" size="sm" onClick={() => handleSort("startDate")} className="p-0 h-auto font-normal">
+                            <span className="inline-flex items-center">Start Date
+                              <span className="ml-2 text-muted-foreground">
+                                {sort?.key === "startDate" ? (sort.direction === "asc" ? "▲" : "▼") : <ArrowUpDown className="h-3 w-3" />}
+                              </span>
+                            </span>
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button variant="ghost" size="sm" onClick={() => handleSort("endDate")} className="p-0 h-auto font-normal">
+                            <span className="inline-flex items-center">End Date
+                              <span className="ml-2 text-muted-foreground">
+                                {sort?.key === "endDate" ? (sort.direction === "asc" ? "▲" : "▼") : <ArrowUpDown className="h-3 w-3" />}
+                              </span>
+                            </span>
+                          </Button>
+                        </TableHead>
                         <TableHead className="min-w-32">Progress</TableHead>
                         <TableHead>Color</TableHead>
                         <TableHead>Status</TableHead>
@@ -289,8 +357,32 @@ function ChartEditorContent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {project.tasks.map((task) => (
-                        <TableRow key={task.id}>
+                      {sortedTasks.map((task) => (
+                        <TableRow
+                          key={task.id}
+                          onDragOver={(e) => {
+                            if (sort) return
+                            e.preventDefault()
+                            setDragOverTaskId(task.id)
+                          }}
+                          onDrop={() => handleRowDrop(task.id)}
+                          className={dragOverTaskId === task.id && !sort ? "bg-muted/40" : ""}
+                        >
+                          <TableCell className="align-middle">
+                            <button
+                              aria-label="Drag to reorder"
+                              draggable={!sort}
+                              onDragStart={() => setDraggingTaskId(task.id)}
+                              onDragEnd={() => {
+                                setDraggingTaskId(null)
+                                setDragOverTaskId(null)
+                              }}
+                              className={"p-0.5 text-muted-foreground " + (sort ? "cursor-not-allowed opacity-50" : "cursor-grab active:cursor-grabbing")}
+                              title={sort ? "Clear sorting to reorder" : "Drag to reorder"}
+                            >
+                              <GripVertical className="h-4 w-4" />
+                            </button>
+                          </TableCell>
                           <TableCell className="font-medium">{task.name}</TableCell>
                           <TableCell>{format(parseISO(task.startDate), "MMM dd, yyyy")}</TableCell>
                           <TableCell>{format(parseISO(task.endDate), "MMM dd, yyyy")}</TableCell>
@@ -334,7 +426,7 @@ function ChartEditorContent() {
 
                 {/* Mobile list */}
                 <div className="md:hidden space-y-4">
-                  {project.tasks.map((task) => (
+                  {sortedTasks.map((task) => (
                     <div
                       key={task.id}
                       className="border rounded-lg p-4 flex flex-col items-center text-center gap-3"
