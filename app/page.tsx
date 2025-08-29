@@ -165,7 +165,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex items-center flex-wrap gap-4 justify-between mb-8">
           <div className="flex flex-col flex-wrap">
-            <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-2">Gantt Maestro</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Gantt Maestro</h1>
                 <p className="text-sm md:text-base text-muted-foreground">Free offline Gantt chart generator and project manager</p>
             </div>
             <div className="flex items-center gap-2">
@@ -230,8 +230,8 @@ export default function Dashboard() {
 
         {/* Stats Cards */}
         <div className="grid-cols-1 md:grid-cols-3 gap-6 mb-8 hidden md:grid">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="py-5 gap-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
               <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
               <Folder className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -240,8 +240,8 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="py-5 gap-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
               <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -250,8 +250,8 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="py-5 gap-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
               <CardTitle className="text-sm font-medium">Completed Projects</CardTitle>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -269,7 +269,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             {charts.length === 0 ? (
-              <div className="text-center py-6">
+              <div className="text-center py-3">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
                 <p className="text-muted-foreground mb-4">Create your first Gantt chart or import an existing one</p>
@@ -403,8 +403,8 @@ export default function Dashboard() {
         {/* Features Section */}
         <div className="mt-12">
            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card className="py-5 gap-3">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
                 <CardTitle className="text-base">100% Offline and Private</CardTitle>
                 <HardDrive className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
@@ -415,8 +415,8 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card className="py-5 gap-3">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
                 <CardTitle className="text-base">No Login or Signup</CardTitle>
                 <UserX className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
@@ -427,8 +427,8 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card className="py-5 gap-3">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
                 <CardTitle className="text-base">Import & Export Data</CardTitle>
                 <Download className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
