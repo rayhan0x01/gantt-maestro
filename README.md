@@ -10,11 +10,11 @@ Free minimalistic Gantt chart generator and project manager.
 
 ### FAQ
 
-* Is it free?
-Yes, it's free and open-source.
+**Is it free?**
+> Yes, it's free and open-source.
 
-* Is it secure?
-Yes, it's secure. Any data you save is stored locally in your browser.
+**Is it secure?**
+> Yes, it's secure. Any data you save is stored locally in your browser.
 
-* I have changed my browser, how do I get my data back?
-You can export your data as JSON and import it into another browser.
+**I have changed my browser, how do I get my data back?**
+> You can export your data as JSON and import it into another browser.
