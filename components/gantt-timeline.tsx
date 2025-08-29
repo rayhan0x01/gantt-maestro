@@ -331,17 +331,20 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
                     )
                   })()}
 
-                  
+
 
                   {/* Task name label */}
-                  <text
-                    x={PADDING + taskBar.x + 16}
-                    y={taskBar.y + TASK_HEIGHT / 2 + 4}
-                    className="text-xs fill-white font-medium pointer-events-none"
-                    style={{ textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}
+                  <foreignObject
+                    x={PADDING + taskBar.x}
+                    y={taskBar.y}
+                    width={taskBar.width}
+                    height={TASK_HEIGHT}
                   >
-                    {taskBar.task.name}
-                  </text>
+                    <div className="flex items-center justify-center overflow-hidden" style={{ width: taskBar.width - 30, height: TASK_HEIGHT }}>
+                      <p className="px-2 text-xs text-white font-medium pointer-events-none truncate">{taskBar.task.name}</p>
+                    </div>
+                  </foreignObject>
+
 
                   {/* Progress percentage */}
                   {taskBar.task.progress > 0 && (
