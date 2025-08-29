@@ -72,8 +72,8 @@ export default function Dashboard() {
     GanttStorage.saveChart(newChart)
     loadCharts()
 
-    // Navigate to the new chart
-    window.location.href = `/chart?id=${newChart.id}`
+    const currentPath = window.location.pathname
+    window.location.href = `${currentPath}chart?id=${newChart.id}`
   }
 
   const deleteChart = (id: string) => {
