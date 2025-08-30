@@ -37,7 +37,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
   const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
   const [containerWidth, setContainerWidth] = useState<number>(0)
 
-  const TIMELINE_HEIGHT = 300
+  const BASE_TIMELINE_HEIGHT = 300
   const TASK_HEIGHT = 32
   const TASK_SPACING = 46
   const HEADER_HEIGHT = 56
@@ -83,6 +83,11 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
       visible,
     }
   })
+
+  // Compute dynamic timeline height: base height fits up to 4 tasks
+  const visibleTaskCount = taskBars.filter((tb) => tb.visible).length
+  const extraTasks = Math.max(0, visibleTaskCount - 4)
+  const timelineHeight = BASE_TIMELINE_HEIGHT + extraTasks * TASK_SPACING
 
   // Generate date headers
   const dateHeaders = Array.from({ length: totalDays }, (_, i) => {
@@ -245,7 +250,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
       <svg
         ref={svgRef}
         width={Math.max(containerWidth || 1600, timelineWidth + PADDING * 2)} 
-        height={TIMELINE_HEIGHT}
+        height={timelineHeight}
         className="border rounded-lg bg-card overflow-x-scroll"
         style={{ touchAction: "none" }}
         onPointerMove={(e) => {
@@ -254,7 +259,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
           const x = e.clientX - rect.left
           const y = e.clientY - rect.top
           const withinX = x >= PADDING && x <= PADDING + timelineWidth
-          const withinY = y >= 0 && y <= TIMELINE_HEIGHT
+          const withinY = y >= 0 && y <= timelineHeight
           if (!withinX || !withinY) {
             setHoveredDayIndex(null)
             return
@@ -271,7 +276,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
             x={PADDING + hoveredDayIndex * dayWidth}
             y={0}
             width={dayWidth}
-            height={TIMELINE_HEIGHT}
+            height={timelineHeight}
             fill="hsl(var(--primary))"
             opacity={0.02}
             style={{ pointerEvents: "none" }}
@@ -286,7 +291,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
                 x1={PADDING + header.x}
                 y1={0}
                 x2={PADDING + header.x}
-                y2={TIMELINE_HEIGHT}
+                y2={timelineHeight}
                 stroke="hsl(var(--border))"
                 strokeWidth={1}
                 opacity={0.3}
@@ -461,7 +466,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
         {/* Zoom controls */}
         <foreignObject
           x={PADDING - 8}
-          y={TIMELINE_HEIGHT - 50}
+          y={timelineHeight - 50}
           width={140}
           height={40}
         >
