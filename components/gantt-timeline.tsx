@@ -5,6 +5,9 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { format, parseISO, differenceInCalendarDays, isWithinInterval } from "date-fns"
 import type { Task } from "@/lib/storage"
+import { Button } from "@/components/ui/button"
+import { MinusIcon, PlusIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface GanttTimelineProps {
   tasks: Task[]
@@ -32,6 +35,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
   const [hoveredTask, setHoveredTask] = useState<string | null>(null)
   const [isTouch, setIsTouch] = useState(false)
   const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
+  const [containerWidth, setContainerWidth] = useState<number>(0)
 
   const TIMELINE_HEIGHT = 300
   const TASK_HEIGHT = 32
@@ -43,7 +47,10 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
 
   // Calculate timeline dimensions
   const totalDays = differenceInCalendarDays(dateRange.end, dateRange.start) + 1
-  const dayWidth = Math.max(36, (800 - PADDING * 2) / totalDays)
+  const [dayWidth, setDayWidth] = useState(36)
+  const ZOOM_MIN = 16
+  const ZOOM_MAX = 128
+  const ZOOM_STEP = 4
   const timelineWidth = totalDays * dayWidth
 
   // Generate task bars
@@ -214,11 +221,30 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
     }
   }, [dragState])
 
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element) return
+
+    const updateWidth = () => setContainerWidth(element.clientWidth)
+    // Initial measurement after mount
+    updateWidth()
+
+    // Watch for any size changes of the container
+    const resizeObserver = new ResizeObserver(() => {
+      updateWidth()
+    })
+    resizeObserver.observe(element)
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [])
+
   return (
-    <div className="w-full overflow-x-auto" ref={containerRef}>
+    <div className="overflow-x-auto" ref={containerRef}>
       <svg
         ref={svgRef}
-        width={Math.max(containerRef.current?.clientWidth || 1600, timelineWidth + PADDING * 2)} 
+        width={Math.max(containerWidth || 1600, timelineWidth + PADDING * 2)} 
         height={TIMELINE_HEIGHT}
         className="border rounded-lg bg-card overflow-x-scroll"
         style={{ touchAction: "none" }}
@@ -247,7 +273,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
             width={dayWidth}
             height={TIMELINE_HEIGHT}
             fill="hsl(var(--primary))"
-            opacity={0.08}
+            opacity={0.02}
             style={{ pointerEvents: "none" }}
           />
         )}
@@ -432,18 +458,42 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
             })}
         </g>
 
-        {/* Hovered day indicator line (on top) */}
-        {hoveredDayIndex !== null && (
-          <line
-            x1={PADDING + hoveredDayIndex * dayWidth + dayWidth / 2}
-            y1={0}
-            x2={PADDING + hoveredDayIndex * dayWidth + dayWidth / 2}
-            y2={TIMELINE_HEIGHT}
-            stroke="hsl(var(--primary))"
-            strokeWidth={2}
-            strokeDasharray="4,4"
-          />
-        )}
+        {/* Zoom controls */}
+        <foreignObject
+          x={PADDING - 8}
+          y={TIMELINE_HEIGHT - 50}
+          width={140}
+          height={40}
+        >
+          <div className={cn("flex items-center gap-2", hoveredDayIndex === null && "opacity-0")}>
+            <Button
+              size="icon"
+              variant="outline"
+              aria-label="Zoom out"
+              className="cursor-pointer rounded-none"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setDayWidth((w) => Math.max(ZOOM_MIN, w - ZOOM_STEP))
+              }}
+            >
+              <MinusIcon className="h-3 w-3" />
+            </Button>
+            <Button
+              size="icon"
+              variant="outline"
+              aria-label="Zoom in"
+              className="cursor-pointer rounded-none"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setDayWidth((w) => Math.min(ZOOM_MAX, w + ZOOM_STEP))
+              }}
+            >
+              <PlusIcon className="h-3 w-3" />
+            </Button>
+          </div>
+        </foreignObject>
       </svg>
     </div>
   )
