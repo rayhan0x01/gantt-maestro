@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { format, parseISO, differenceInDays, isWithinInterval } from "date-fns"
+import { format, parseISO, differenceInCalendarDays, isWithinInterval } from "date-fns"
 import type { Task } from "@/lib/storage"
 
 interface GanttTimelineProps {
@@ -31,6 +31,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
   } | null>(null)
   const [hoveredTask, setHoveredTask] = useState<string | null>(null)
   const [isTouch, setIsTouch] = useState(false)
+  const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null)
 
   const TIMELINE_HEIGHT = 300
   const TASK_HEIGHT = 32
@@ -41,7 +42,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
   const TRACK_GAP = 1
 
   // Calculate timeline dimensions
-  const totalDays = differenceInDays(dateRange.end, dateRange.start) + 1
+  const totalDays = differenceInCalendarDays(dateRange.end, dateRange.start) + 1
   const dayWidth = Math.max(36, (800 - PADDING * 2) / totalDays)
   const timelineWidth = totalDays * dayWidth
 
@@ -56,12 +57,15 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
       isWithinInterval(taskEnd, { start: dateRange.start, end: dateRange.end }) ||
       (taskStart < dateRange.start && taskEnd > dateRange.end)
 
-    // Calculate position and width
-    const startDayOffset = Math.max(0, differenceInDays(taskStart, dateRange.start) + 1)
-    const endDayOffset = Math.min(totalDays, differenceInDays(taskEnd, dateRange.start) + 2)
+    // Clamp to visible range and calculate calendar-day aligned position/width
+    const clampedStart = taskStart < dateRange.start ? dateRange.start : taskStart
+    const clampedEnd = taskEnd > dateRange.end ? dateRange.end : taskEnd
+
+    const startDayOffset = Math.max(0, differenceInCalendarDays(clampedStart, dateRange.start))
+    const durationDays = Math.max(1, differenceInCalendarDays(clampedEnd, clampedStart) + 1)
 
     const x = startDayOffset * dayWidth
-    const width = Math.max(dayWidth * 0.8, (endDayOffset - startDayOffset) * dayWidth)
+    const width = Math.max(dayWidth * 0.8, durationDays * dayWidth)
     const y = HEADER_HEIGHT + index * TASK_SPACING
 
     return {
@@ -218,7 +222,36 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
         height={TIMELINE_HEIGHT}
         className="border rounded-lg bg-card overflow-x-scroll"
         style={{ touchAction: "none" }}
+        onPointerMove={(e) => {
+          const rect = svgRef.current?.getBoundingClientRect()
+          if (!rect) return
+          const x = e.clientX - rect.left
+          const y = e.clientY - rect.top
+          const withinX = x >= PADDING && x <= PADDING + timelineWidth
+          const withinY = y >= 0 && y <= TIMELINE_HEIGHT
+          if (!withinX || !withinY) {
+            setHoveredDayIndex(null)
+            return
+          }
+          const idx = Math.floor((x - PADDING) / dayWidth)
+          const clampedIdx = Math.max(0, Math.min(totalDays - 1, idx))
+          setHoveredDayIndex(clampedIdx)
+        }}
+        onPointerLeave={() => setHoveredDayIndex(null)}
       >
+        {/* Hovered day background highlight (behind tasks) */}
+        {hoveredDayIndex !== null && (
+          <rect
+            x={PADDING + hoveredDayIndex * dayWidth}
+            y={0}
+            width={dayWidth}
+            height={TIMELINE_HEIGHT}
+            fill="hsl(var(--primary))"
+            opacity={0.08}
+            style={{ pointerEvents: "none" }}
+          />
+        )}
+
         {/* Date headers Days */}
         <g>
           {dateHeaders.map((header, i) => (
@@ -307,8 +340,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
                     height={TASK_HEIGHT}
                     fill={getLighterShade(taskBar.task.color)}
                     rx={4}
-                    className="cursor-pointer"
-                    onPointerDown={(e) => handlePointerDown(e, taskBar.task.id, "progress")}
+                    className="pointer-events-none"
                   />
 
                   {/* Progress seek track below the bar (appears on hover) */}
@@ -400,25 +432,18 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
             })}
         </g>
 
-        {/* Today indicator */}
-        {(() => {
-          const today = new Date()
-          const todayOffset = differenceInDays(today, dateRange.start)
-          if (todayOffset >= 0 && todayOffset < totalDays) {
-            return (
-              <line
-                x1={PADDING + todayOffset * dayWidth + dayWidth / 2}
-                y1={0}
-                x2={PADDING + todayOffset * dayWidth + dayWidth / 2}
-                y2={TIMELINE_HEIGHT}
-                stroke="hsl(var(--destructive))"
-                strokeWidth={2}
-                strokeDasharray="4,4"
-              />
-            )
-          }
-          return null
-        })()}
+        {/* Hovered day indicator line (on top) */}
+        {hoveredDayIndex !== null && (
+          <line
+            x1={PADDING + hoveredDayIndex * dayWidth + dayWidth / 2}
+            y1={0}
+            x2={PADDING + hoveredDayIndex * dayWidth + dayWidth / 2}
+            y2={TIMELINE_HEIGHT}
+            stroke="hsl(var(--primary))"
+            strokeWidth={2}
+            strokeDasharray="4,4"
+          />
+        )}
       </svg>
     </div>
   )
