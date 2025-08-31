@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { format, parseISO, differenceInCalendarDays, isWithinInterval } from "date-fns"
+import { format, parseISO, differenceInCalendarDays, startOfDay, endOfDay } from "date-fns"
 import type { Task } from "@/lib/storage"
 import { Button } from "@/components/ui/button"
 import { MinusIcon, PlusIcon } from "lucide-react"
@@ -45,8 +45,12 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
   const TRACK_HEIGHT = 6
   const TRACK_GAP = 1
 
+  // Normalize date range to calendar day boundaries to avoid time-of-day edge cases
+  const rangeStart = startOfDay(dateRange.start)
+  const rangeEnd = endOfDay(dateRange.end)
+
   // Calculate timeline dimensions
-  const totalDays = differenceInCalendarDays(dateRange.end, dateRange.start) + 1
+  const totalDays = differenceInCalendarDays(rangeEnd, rangeStart) + 1
   const [dayWidth, setDayWidth] = useState(36)
   const ZOOM_MIN = 16
   const ZOOM_MAX = 128
@@ -58,17 +62,18 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
     const taskStart = parseISO(task.startDate)
     const taskEnd = parseISO(task.endDate)
 
-    // Check if task is visible in current date range
-    const visible =
-      isWithinInterval(taskStart, { start: dateRange.start, end: dateRange.end }) ||
-      isWithinInterval(taskEnd, { start: dateRange.start, end: dateRange.end }) ||
-      (taskStart < dateRange.start && taskEnd > dateRange.end)
+    // Align tasks to calendar day boundaries
+    const taskStartDay = startOfDay(taskStart)
+    const taskEndDay = endOfDay(taskEnd)
+
+    // A task is visible if it overlaps the [rangeStart, rangeEnd] interval (inclusive)
+    const visible = taskEndDay >= rangeStart && taskStartDay <= rangeEnd
 
     // Clamp to visible range and calculate calendar-day aligned position/width
-    const clampedStart = taskStart < dateRange.start ? dateRange.start : taskStart
-    const clampedEnd = taskEnd > dateRange.end ? dateRange.end : taskEnd
+    const clampedStart = taskStartDay < rangeStart ? rangeStart : taskStartDay
+    const clampedEnd = taskEndDay > rangeEnd ? rangeEnd : taskEndDay
 
-    const startDayOffset = Math.max(0, differenceInCalendarDays(clampedStart, dateRange.start))
+    const startDayOffset = Math.max(0, differenceInCalendarDays(clampedStart, rangeStart))
     const durationDays = Math.max(1, differenceInCalendarDays(clampedEnd, clampedStart) + 1)
 
     const x = startDayOffset * dayWidth
@@ -91,7 +96,7 @@ export function GanttTimeline({ tasks, dateRange, onTaskUpdate }: GanttTimelineP
 
   // Generate date headers
   const dateHeaders = Array.from({ length: totalDays }, (_, i) => {
-    const date = new Date(dateRange.start)
+    const date = new Date(rangeStart)
     date.setDate(date.getDate() + i)
     return {
       date,
